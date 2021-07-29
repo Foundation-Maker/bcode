@@ -19,44 +19,41 @@ public class CounterRateLimiter {
     /**
      * 秒计数
      */
-    private static Long secCounter;
+    private static Long secCounter = System.currentTimeMillis();
 
     /**
      * TPS计数
      */
-    private AtomicInteger TPSCounter;
+    private AtomicInteger TPSCounter = new AtomicInteger(0);
 
+    private Integer perSecLimit;
+
+    public CounterRateLimiter CounterRateLimiter() {
+        return this;
+    }
+
+    public CounterRateLimiter creat(Integer perSecLimit) {
+        this.perSecLimit = perSecLimit;
+        return this;
+    }
 
     /**
-     * 一秒内的流量限制不超过4TPS
-     *
-     * @param index
+     * 一秒内的流量限制不超过 perSecLimit TPS
      */
-    public void tryAcquire(int index) {
-
-        if (secCounter == null) {
-            log.info("重置,[index={},secCounter={},TPSCounter={}]", index, secCounter, TPSCounter);
+    public boolean tryAcquire() {
+        if ((System.currentTimeMillis() - secCounter) > 1000) {
             secCounter = System.currentTimeMillis();
             TPSCounter = new AtomicInteger(0);
+            return true;
         }
 
-        if ((System.currentTimeMillis() - secCounter) > 1000) {
-            log.info("时间重置,[index={},secCounter={},TPSCounter={}]", index, secCounter, TPSCounter);
-            secCounter = null;
-        }
-
-        if (TPSCounter.intValue() > 4) {
-            log.info("TPS限流,[index={},secCounter={},TPSCounter={}]", index, secCounter, TPSCounter);
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            tryAcquire(index);
-        } else {
-            log.info("正常访问,[index={},secCounter={},TPSCounter={}]", index, secCounter, TPSCounter);
+        if (TPSCounter.get() < perSecLimit) {
             TPSCounter.incrementAndGet();
+            return true;
+        } else {
+            return false;
         }
 
     }
 }
+
